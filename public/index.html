@@ -214,17 +214,17 @@
   </header>
 
   <div class="tiers">
-    <div class="tier" onclick="selectTier(this, '0.1')" data-amount="0.1">
+    <div class="tier" onclick="selectTier(this)" data-amount="0.1">
       <div class="price">0.1 XLM</div>
       <div class="label">Search</div>
       <div class="sources">Web search</div>
     </div>
-    <div class="tier selected" onclick="selectTier(this, '0.3')" data-amount="0.2">
+    <div class="tier" onclick="selectTier(this)" data-amount="0.2">
       <div class="price">0.2 XLM</div>
       <div class="label">News</div>
       <div class="sources">Web + news</div>
     </div>
-    <div class="tier selected" onclick="selectTier(this, '0.3')" data-amount="0.3">
+    <div class="tier selected" onclick="selectTier(this)" data-amount="0.3">
       <div class="price">0.3 XLM</div>
       <div class="label">Research</div>
       <div class="sources">Web + news + financial</div>
@@ -256,39 +256,42 @@
   </div>
 
   <script type="module">
-    import { isConnected, requestAccess, getAddress, signTransaction } from 'https://esm.sh/@stellar/freighter-api@4.1.0';
+    import { StellarWalletsKit, WalletNetwork, FREIGHTER_ID, allowAllModules } from 'https://esm.sh/@creit.tech/stellar-wallets-kit@2.1.0';
+
+    const kit = new StellarWalletsKit({
+      network: WalletNetwork.TESTNET,
+      selectedWalletId: FREIGHTER_ID,
+      modules: allowAllModules(),
+    });
 
     let walletAddress = null;
     let selectedAmount = '0.3';
 
-    window.selectTier = (el, amount) => {
+    window.selectTier = (el) => {
       document.querySelectorAll('.tier').forEach(t => t.classList.remove('selected'));
       el.classList.add('selected');
       selectedAmount = el.dataset.amount;
     };
 
     window.connectWallet = async () => {
-      const { isConnected: connected } = await isConnected();
-      if (!connected) {
-        showError('Freighter not found. Install it from freighter.app then refresh.');
-        return;
-      }
-
-      const { address, error } = await requestAccess();
-      if (error) { showError('Freighter access denied: ' + error); return; }
-
-      walletAddress = address;
-      document.getElementById('walletInfo').textContent = 'Connected';
-      document.getElementById('walletAddress').textContent = address.slice(0, 6) + '...' + address.slice(-4);
-      const btn = document.getElementById('connectBtn');
-      btn.textContent = 'Connected';
-      btn.classList.add('connected');
+      await kit.openModal({
+        onWalletSelected: async (option) => {
+          kit.setWallet(option.id);
+          const { address } = await kit.getAddress();
+          walletAddress = address;
+          document.getElementById('walletInfo').textContent = 'Connected';
+          document.getElementById('walletAddress').textContent = address.slice(0, 6) + '...' + address.slice(-4);
+          const btn = document.getElementById('connectBtn');
+          btn.textContent = 'Connected';
+          btn.classList.add('connected');
+        },
+      });
     };
 
     window.payAndAsk = async () => {
       const query = document.getElementById('query').value.trim();
       if (!query) { showError('Please enter a query.'); return; }
-      if (!walletAddress) { showError('Connect your Freighter wallet first.'); return; }
+      if (!walletAddress) { showError('Connect your wallet first.'); return; }
 
       const btn = document.getElementById('submitBtn');
       btn.disabled = true;
@@ -305,12 +308,11 @@
         const { xdr, memo, error: payErr } = await payRes.json();
         if (payErr) throw new Error(payErr);
 
-        // Step 2: Sign with Freighter
-        setStatus('Waiting for Freighter signature...');
-        const { signedTxXdr, error: signErr } = await signTransaction(xdr, {
+        // Step 2: Sign with wallet
+        setStatus('Waiting for wallet signature...');
+        const { signedTxXdr } = await kit.signTransaction(xdr, {
           networkPassphrase: 'Test SDF Network ; September 2015',
         });
-        if (signErr) throw new Error('Signing cancelled or failed: ' + signErr);
 
         // Step 3: Submit to Horizon
         setStatus('Submitting payment to Stellar...');
