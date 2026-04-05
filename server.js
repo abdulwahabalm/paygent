@@ -1,5 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { verifyPayment } from './middleware/verifyPayment.js';
 import { routeQuery } from './middleware/routeQuery.js';
 import { searchAgent } from './agents/search.js';
@@ -9,8 +11,11 @@ import { synthesize } from './agents/synthesize.js';
 
 dotenv.config();
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 const app = express();
 app.use(express.json());
+app.use(express.static(join(__dirname, 'public')));
 
 // Which agents run at each tier
 const TIER_AGENTS = {

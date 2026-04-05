@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paygent</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0a0a0f;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 16px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #7c6aff, #3eb6ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -1px;
+    }
+
+    header p {
+      color: #94a3b8;
+      margin-top: 8px;
+      font-size: 1rem;
+    }
+
+    .tiers {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .tier {
+      background: #13131f;
+      border: 1px solid #1e1e2e;
+      border-radius: 12px;
+      padding: 16px 20px;
+      min-width: 160px;
+      text-align: center;
+    }
+
+    .tier .price {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #7c6aff;
+    }
+
+    .tier .label {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    .tier .sources {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 6px;
+    }
+
+    .card {
+      background: #13131f;
+      border: 1px solid #1e1e2e;
+      border-radius: 16px;
+      padding: 32px;
+      width: 100%;
+      max-width: 640px;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input, textarea {
+      width: 100%;
+      background: #0a0a0f;
+      border: 1px solid #1e1e2e;
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, textarea:focus {
+      border-color: #7c6aff;
+    }
+
+    textarea { resize: vertical; min-height: 72px; }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #7c6aff, #3eb6ff);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.2s;
+    }
+
+    button:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .result {
+      margin-top: 24px;
+      display: none;
+    }
+
+    .result.visible { display: block; }
+
+    .result-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+
+    .badge-agent { background: #1e1e3f; color: #7c6aff; }
+    .badge-xlm   { background: #0f2a1f; color: #3eb6ff; }
+
+    .answer {
+      background: #0a0a0f;
+      border: 1px solid #1e1e2e;
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 0.95rem;
+      line-height: 1.65;
+      color: #cbd5e1;
+      white-space: pre-wrap;
+    }
+
+    .sources-list {
+      margin-top: 16px;
+    }
+
+    .sources-list p {
+      font-size: 0.75rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .sources-list a {
+      display: block;
+      font-size: 0.8rem;
+      color: #3eb6ff;
+      text-decoration: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 4px;
+    }
+
+    .sources-list a:hover { text-decoration: underline; }
+
+    .error-msg {
+      background: #1f0f0f;
+      border: 1px solid #3f1f1f;
+      border-radius: 10px;
+      padding: 14px 16px;
+      color: #f87171;
+      font-size: 0.9rem;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Paygent</h1>
+    <p>Pay XLM. Get answers. Powered by Stellar.</p>
+  </header>
+
+  <div class="tiers" id="tiers">
+    <div class="tier">
+      <div class="price">0.1 XLM</div>
+      <div class="label">Search</div>
+      <div class="sources">Web search</div>
+    </div>
+    <div class="tier">
+      <div class="price">0.2 XLM</div>
+      <div class="label">News</div>
+      <div class="sources">Web + news</div>
+    </div>
+    <div class="tier">
+      <div class="price">0.3 XLM</div>
+      <div class="label">Research</div>
+      <div class="sources">Web + news + financial</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="field">
+      <label>Query</label>
+      <textarea id="query" placeholder="What is the current Bitcoin price and market sentiment?"></textarea>
+    </div>
+    <div class="field">
+      <label>Your Stellar Public Key</label>
+      <input id="pubkey" type="text" placeholder="G..." />
+    </div>
+    <div class="field">
+      <label>Payment Memo ID</label>
+      <input id="memoId" type="text" placeholder="The text memo used when sending XLM" />
+    </div>
+    <button id="submitBtn" onclick="submit()">Ask Agent</button>
+
+    <div class="result" id="result"></div>
+  </div>
+
+  <script>
+    async function submit() {
+      const query   = document.getElementById('query').value.trim();
+      const pubkey  = document.getElementById('pubkey').value.trim();
+      const memoId  = document.getElementById('memoId').value.trim();
+      const btn     = document.getElementById('submitBtn');
+      const result  = document.getElementById('result');
+
+      if (!query || !pubkey || !memoId) {
+        showError('All fields are required.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Querying...';
+      result.className = 'result';
+
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, pubkey, memoId }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showError(data.error || 'Something went wrong.');
+          return;
+        }
+
+        const agents = (data.agentsUsed || [])
+          .map(a => `<span class="badge badge-agent">${a}</span>`).join('');
+
+        const sources = (data.sources || [])
+          .map(s => `<a href="${s}" target="_blank" rel="noopener">${s}</a>`).join('');
+
+        result.innerHTML = `
+          <div class="result-meta">
+            ${agents}
+            <span class="badge badge-xlm">${data.xlmCharged} XLM</span>
+          </div>
+          <div class="answer">${escapeHtml(data.answer)}</div>
+          ${sources ? `<div class="sources-list"><p>Sources</p>${sources}</div>` : ''}
+        `;
+        result.className = 'result visible';
+      } catch (err) {
+        showError('Network error — is the server running?');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Ask Agent';
+      }
+    }
+
+    function showError(msg) {
+      const result = document.getElementById('result');
+      result.innerHTML = `<div class="error-msg">${escapeHtml(msg)}</div>`;
+      result.className = 'result visible';
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+  </script>
+</body>
+</html>
