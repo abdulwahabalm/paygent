@@ -30,7 +30,7 @@ The pricing tier determines how many sources the agent uses:
 | News | 0.2 XLM | Web search + recent news |
 | Research | 0.3 XLM | Web + news + live financial data |
 
-The Soroban contract enforces these tiers on-chain — not just payment existence, but that the correct amount was paid for the requested tier. Used memos are recorded permanently on-chain to prevent replay attacks.
+The Soroban contract enforces these tiers on-chain not just payment existence, but that the correct amount was paid for the requested tier. Used memos are recorded permanently on-chain to prevent replay attacks.
 
 ---
 
