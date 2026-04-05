@@ -256,7 +256,7 @@
   </div>
 
   <script type="module">
-    import { isConnected, requestAccess, signTransaction } from 'https://cdn.jsdelivr.net/npm/@stellar/freighter-api@4.1.0/+esm';
+    import { isConnected, getPublicKey, signTransaction } from 'https://cdn.jsdelivr.net/npm/@stellar/freighter-api@1.3.1/+esm';
 
     let walletAddress = null;
     let selectedAmount = '0.3';
@@ -269,13 +269,13 @@
 
     window.connectWallet = async () => {
       try {
-        const { isConnected: connected, error: connErr } = await isConnected();
-        if (connErr || !connected) {
+        const connected = await isConnected();
+        if (!connected) {
           showError('Freighter not found — install it from freighter.app and refresh.');
           return;
         }
-        const { address, error: accessErr } = await requestAccess();
-        if (accessErr) { showError('Freighter access denied: ' + accessErr); return; }
+        const address = await getPublicKey();
+        if (!address) { showError('Could not get public key from Freighter.'); return; }
 
         walletAddress = address;
         document.getElementById('walletInfo').textContent = 'Connected';
@@ -310,10 +310,8 @@
 
         // Step 2: Sign with Freighter
         setStatus('Waiting for Freighter signature...');
-        const { signedTxXdr, error: signErr } = await signTransaction(xdr, {
-          networkPassphrase: 'Test SDF Network ; September 2015',
-        });
-        if (signErr) throw new Error('Signing failed: ' + signErr);
+        const signedTxXdr = await signTransaction(xdr, 'Test SDF Network ; September 2015');
+        if (!signedTxXdr) throw new Error('Signing cancelled.');
 
         // Step 3: Submit to Horizon
         setStatus('Submitting payment to Stellar...');
