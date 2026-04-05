@@ -19,7 +19,6 @@
   },
   "homepage": "https://github.com/abdulwahabalm/paygent#readme",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
     "@stellar/stellar-sdk": "^13.1.0",
     "dotenv": "^16.4.7",
     "express": "^5.2.1"
