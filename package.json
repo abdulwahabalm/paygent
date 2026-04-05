@@ -1,0 +1,27 @@
+{
+  "name": "paygent",
+  "version": "1.0.0",
+  "description": "An autonomous API gateway where every query has a price (pay XLM, get answers).",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abdulwahabalm/paygent.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/abdulwahabalm/paygent/issues"
+  },
+  "homepage": "https://github.com/abdulwahabalm/paygent#readme",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@stellar/stellar-sdk": "^13.1.0",
+    "dotenv": "^16.4.7",
+    "express": "^5.2.1"
+  }
+}
