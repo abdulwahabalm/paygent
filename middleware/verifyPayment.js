@@ -1,5 +1,6 @@
-import pkg from '@stellar/stellar-sdk';
-const { Horizon, SorobanRpc, TransactionBuilder, Networks, Contract, nativeToScVal, scValToNative, Keypair } = pkg;
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { Horizon, rpc: SorobanRpc, TransactionBuilder, Networks, Contract, nativeToScVal, scValToNative, Keypair } = require('@stellar/stellar-sdk');
 
 const TIER_COSTS = { search: 0.1, news: 0.2, financial: 0.3 };
 
@@ -42,13 +43,16 @@ async function checkHorizon(pubkey, memoId) {
       .limit(50)
       .call();
 
+    console.log(`Found ${payments.records.length} payment records for gateway`);
     for (const payment of payments.records) {
+      console.log(`  type=${payment.type} asset=${payment.asset_type} from=${payment.from} amount=${payment.amount}`);
       if (
         payment.type === 'payment' &&
         payment.asset_type === 'native' &&
         payment.from === pubkey
       ) {
         const tx = await payment.transaction();
+        console.log(`  memo=${JSON.stringify(tx.memo)} memoId=${JSON.stringify(memoId)}`);
         if (tx.memo === memoId) {
           return { valid: true, amount: parseFloat(payment.amount) };
         }
