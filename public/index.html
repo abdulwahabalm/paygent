@@ -255,9 +255,7 @@
     <div class="result" id="result"></div>
   </div>
 
-  <script type="module">
-    import { isConnected, requestAccess, signTransaction } from 'https://esm.sh/@stellar/freighter-api@2.0.0';
-
+  <script>
     let walletAddress = null;
     let selectedAmount = '0.3';
 
@@ -268,20 +266,22 @@
     };
 
     window.connectWallet = async () => {
-      const connected = await isConnected();
-      if (!connected) {
+      if (!window.freighter) {
         showError('Freighter not found — install it from freighter.app and refresh.');
         return;
       }
-      const address = await requestAccess();
-      if (!address) { showError('Freighter access denied.'); return; }
-
-      walletAddress = address;
-      document.getElementById('walletInfo').textContent = 'Connected';
-      document.getElementById('walletAddress').textContent = address.slice(0, 6) + '...' + address.slice(-4);
-      const btn = document.getElementById('connectBtn');
-      btn.textContent = 'Connected';
-      btn.classList.add('connected');
+      try {
+        const address = await window.freighter.getPublicKey();
+        if (!address) { showError('Freighter access denied.'); return; }
+        walletAddress = address;
+        document.getElementById('walletInfo').textContent = 'Connected';
+        document.getElementById('walletAddress').textContent = address.slice(0, 6) + '...' + address.slice(-4);
+        const btn = document.getElementById('connectBtn');
+        btn.textContent = 'Connected';
+        btn.classList.add('connected');
+      } catch (e) {
+        showError('Could not connect: ' + e.message);
+      }
     };
 
     window.payAndAsk = async () => {
@@ -306,7 +306,7 @@
 
         // Step 2: Sign with Freighter
         setStatus('Waiting for Freighter signature...');
-        const signedTxXdr = await signTransaction(xdr, 'TESTNET');
+        const signedTxXdr = await window.freighter.signTransaction(xdr, 'Test SDF Network ; September 2015');
 
         // Step 3: Submit to Horizon
         setStatus('Submitting payment to Stellar...');
