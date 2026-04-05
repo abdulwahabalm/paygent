@@ -1,14 +1,5 @@
-import {
-  Horizon,
-  SorobanRpc,
-  TransactionBuilder,
-  Networks,
-  BASE_FEE,
-  Contract,
-  nativeToScVal,
-  scValToNative,
-  Keypair,
-} from '@stellar/stellar-sdk';
+import pkg from '@stellar/stellar-sdk';
+const { Horizon, SorobanRpc, TransactionBuilder, Networks, BASE_FEE, Contract, nativeToScVal, scValToNative, Keypair } = pkg;
 
 const TIER_COSTS = { search: 0.1, news: 0.2, financial: 0.3 };
 
