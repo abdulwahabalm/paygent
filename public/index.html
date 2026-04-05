@@ -275,12 +275,15 @@
           showError('Freighter not found — install it from freighter.app and refresh.');
           return;
         }
+        const { address: accessAddr, error: accessErr } = await FreighterApi.requestAccess();
+        if (accessErr) { showError('Freighter access denied: ' + accessErr); return; }
         const { address, error: addrErr } = await getAddress();
-        if (addrErr || !address) { showError('Could not get address from Freighter.'); return; }
+        const resolvedAddress = address || accessAddr;
+        if (!resolvedAddress) { showError('Could not get address from Freighter.'); return; }
 
-        walletAddress = address;
+        walletAddress = resolvedAddress;
         document.getElementById('walletInfo').textContent = 'Connected';
-        document.getElementById('walletAddress').textContent = address.slice(0, 6) + '...' + address.slice(-4);
+        document.getElementById('walletAddress').textContent = resolvedAddress.slice(0, 6) + '...' + resolvedAddress.slice(-4);
         const btn = document.getElementById('connectBtn');
         btn.textContent = 'Connected';
         btn.classList.add('connected');
