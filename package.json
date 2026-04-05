@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "devStart": "nodemon server.js"
+    "devStart": "nodemon server.js",
+    "build": "esbuild node_modules/@stellar/freighter-api/build/index.min.js --bundle --format=esm --platform=browser --outfile=public/freighter-api.js"
   },
   "repository": {
     "type": "git",
@@ -20,11 +21,13 @@
   },
   "homepage": "https://github.com/abdulwahabalm/paygent#readme",
   "dependencies": {
+    "@stellar/freighter-api": "^6.0.1",
     "@stellar/stellar-sdk": "^15.0.1",
     "dotenv": "^16.6.1",
     "express": "^5.2.1"
   },
   "devDependencies": {
+    "esbuild": "^0.28.0",
     "nodemon": "^3.1.14"
   }
 }
