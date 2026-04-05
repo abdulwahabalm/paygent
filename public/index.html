@@ -256,7 +256,7 @@
   </div>
 
   <script type="module">
-    import { isConnected, getPublicKey, signTransaction } from '/freighter-api.js';
+    import { isConnected, getAddress, signTransaction } from '/freighter-api.js';
 
     let walletAddress = null;
     let selectedAmount = '0.3';
@@ -269,13 +269,13 @@
 
     window.connectWallet = async () => {
       try {
-        const connected = await isConnected();
+        const { isConnected: connected } = await isConnected();
         if (!connected) {
           showError('Freighter not found — install it from freighter.app and refresh.');
           return;
         }
-        const address = await getPublicKey();
-        if (!address) { showError('Could not get public key from Freighter.'); return; }
+        const { address, error: addrErr } = await getAddress();
+        if (addrErr || !address) { showError('Could not get address from Freighter.'); return; }
 
         walletAddress = address;
         document.getElementById('walletInfo').textContent = 'Connected';
