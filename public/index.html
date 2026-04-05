@@ -314,8 +314,8 @@
 
         // Step 2: Sign with Freighter
         setStatus('Waiting for Freighter signature...');
-        const signedTxXdr = await signTransaction(xdr, 'Test SDF Network ; September 2015');
-        if (!signedTxXdr) throw new Error('Signing cancelled.');
+        const { signedTxXdr, error: signErr } = await signTransaction(xdr, { networkPassphrase: 'Test SDF Network ; September 2015' });
+        if (signErr || !signedTxXdr) throw new Error('Signing cancelled or failed: ' + (signErr || ''));
 
         // Step 3: Submit to Horizon
         setStatus('Submitting payment to Stellar...');
