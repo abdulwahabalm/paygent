@@ -255,8 +255,9 @@
     <div class="result" id="result"></div>
   </div>
 
-  <script type="module">
-    import { isConnected, getAddress, signTransaction } from '/freighter-api.js';
+  <script src="/freighter-api.js"></script>
+  <script>
+    const { isConnected, getAddress, signTransaction } = FreighterApi;
 
     let walletAddress = null;
     let selectedAmount = '0.3';
