@@ -256,13 +256,7 @@
   </div>
 
   <script type="module">
-    import { StellarWalletsKit, WalletNetwork, FREIGHTER_ID, allowAllModules } from 'https://esm.sh/@creit.tech/stellar-wallets-kit@2.1.0';
-
-    const kit = new StellarWalletsKit({
-      network: WalletNetwork.TESTNET,
-      selectedWalletId: FREIGHTER_ID,
-      modules: allowAllModules(),
-    });
+    import { isConnected, requestAccess, signTransaction } from 'https://esm.sh/@stellar/freighter-api@2.0.0';
 
     let walletAddress = null;
     let selectedAmount = '0.3';
@@ -274,24 +268,26 @@
     };
 
     window.connectWallet = async () => {
-      await kit.openModal({
-        onWalletSelected: async (option) => {
-          kit.setWallet(option.id);
-          const { address } = await kit.getAddress();
-          walletAddress = address;
-          document.getElementById('walletInfo').textContent = 'Connected';
-          document.getElementById('walletAddress').textContent = address.slice(0, 6) + '...' + address.slice(-4);
-          const btn = document.getElementById('connectBtn');
-          btn.textContent = 'Connected';
-          btn.classList.add('connected');
-        },
-      });
+      const connected = await isConnected();
+      if (!connected) {
+        showError('Freighter not found — install it from freighter.app and refresh.');
+        return;
+      }
+      const address = await requestAccess();
+      if (!address) { showError('Freighter access denied.'); return; }
+
+      walletAddress = address;
+      document.getElementById('walletInfo').textContent = 'Connected';
+      document.getElementById('walletAddress').textContent = address.slice(0, 6) + '...' + address.slice(-4);
+      const btn = document.getElementById('connectBtn');
+      btn.textContent = 'Connected';
+      btn.classList.add('connected');
     };
 
     window.payAndAsk = async () => {
       const query = document.getElementById('query').value.trim();
       if (!query) { showError('Please enter a query.'); return; }
-      if (!walletAddress) { showError('Connect your wallet first.'); return; }
+      if (!walletAddress) { showError('Connect your Freighter wallet first.'); return; }
 
       const btn = document.getElementById('submitBtn');
       btn.disabled = true;
@@ -308,11 +304,9 @@
         const { xdr, memo, error: payErr } = await payRes.json();
         if (payErr) throw new Error(payErr);
 
-        // Step 2: Sign with wallet
-        setStatus('Waiting for wallet signature...');
-        const { signedTxXdr } = await kit.signTransaction(xdr, {
-          networkPassphrase: 'Test SDF Network ; September 2015',
-        });
+        // Step 2: Sign with Freighter
+        setStatus('Waiting for Freighter signature...');
+        const signedTxXdr = await signTransaction(xdr, 'TESTNET');
 
         // Step 3: Submit to Horizon
         setStatus('Submitting payment to Stellar...');
