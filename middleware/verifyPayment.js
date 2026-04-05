@@ -1,5 +1,5 @@
 import pkg from '@stellar/stellar-sdk';
-const { Horizon, SorobanRpc, TransactionBuilder, Networks, BASE_FEE, Contract, nativeToScVal, scValToNative, Keypair } = pkg;
+const { Horizon, SorobanRpc, TransactionBuilder, Networks, Contract, nativeToScVal, scValToNative, Keypair } = pkg;
 
 const TIER_COSTS = { search: 0.1, news: 0.2, financial: 0.3 };
 
@@ -70,9 +70,12 @@ async function recordOnChain(memoId, amountXlm) {
   const amountStroops = Math.round(amountXlm * 10_000_000);
 
   try {
-    const account = await rpc.getAccount(keypair.publicKey());
+    const horizon = new Horizon.Server(
+      process.env.HORIZON_URL || 'https://horizon-testnet.stellar.org'
+    );
+    const account = await horizon.loadAccount(keypair.publicKey());
     const tx = new TransactionBuilder(account, {
-      fee: BASE_FEE,
+      fee: '1000000',
       networkPassphrase: Networks.TESTNET,
     })
       .addOperation(
