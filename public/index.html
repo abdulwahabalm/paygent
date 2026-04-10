@@ -185,6 +185,29 @@
     .sources-list a { display: block; font-size: 0.8rem; color: #3eb6ff; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
     .sources-list a:hover { text-decoration: underline; }
 
+    .upload-field { display: none; margin-bottom: 16px; }
+    .upload-field.visible { display: block; }
+
+    .upload-drop {
+      width: 100%;
+      background: #0a0a0f;
+      border: 2px dashed #1e1e2e;
+      border-radius: 8px;
+      padding: 24px;
+      text-align: center;
+      color: #64748b;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .upload-drop:hover, .upload-drop.dragover { border-color: #7c6aff; color: #94a3b8; }
+    .upload-drop input[type="file"] { display: none; }
+    .upload-preview {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: #7c6aff;
+    }
+
     .error-msg {
       background: #1f0f0f;
       border: 1px solid #3f1f1f;
@@ -214,20 +237,25 @@
   </header>
 
   <div class="tiers">
-    <div class="tier" onclick="selectTier(this)" data-amount="0.1">
+    <div class="tier" onclick="selectTier(this)" data-amount="0.1" data-type="search">
       <div class="price">0.1 XLM</div>
       <div class="label">Search</div>
       <div class="sources">Web search</div>
     </div>
-    <div class="tier" onclick="selectTier(this)" data-amount="0.2">
+    <div class="tier" onclick="selectTier(this)" data-amount="0.2" data-type="news">
       <div class="price">0.2 XLM</div>
       <div class="label">News</div>
       <div class="sources">Web + news</div>
     </div>
-    <div class="tier selected" onclick="selectTier(this)" data-amount="0.3">
+    <div class="tier selected" onclick="selectTier(this)" data-amount="0.3" data-type="research">
       <div class="price">0.3 XLM</div>
       <div class="label">Research</div>
       <div class="sources">Web + news + financial</div>
+    </div>
+    <div class="tier" onclick="selectTier(this)" data-amount="0.2" data-type="image_ocr">
+      <div class="price">0.2 XLM</div>
+      <div class="label">Image OCR</div>
+      <div class="sources">Extract text from image</div>
     </div>
   </div>
 
@@ -237,12 +265,21 @@
         <div class="wallet-info" id="walletInfo">No wallet connected</div>
         <div class="wallet-address" id="walletAddress"></div>
       </div>
-      <button class="btn-connect" id="connectBtn" onclick="connectWallet()">Connect Freighter</button>
+      <button class="btn-connect" id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
     </div>
 
     <div class="field">
       <label>Query</label>
       <textarea id="query" placeholder="What is the current Bitcoin price and market outlook?"></textarea>
+    </div>
+
+    <div class="upload-field" id="uploadField">
+      <label>Image</label>
+      <div class="upload-drop" id="uploadDrop" onclick="document.getElementById('imageInput').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <input type="file" id="imageInput" accept="image/*" onchange="onFileSelected(this.files[0])">
+        Click or drag an image here
+      </div>
+      <div class="upload-preview" id="uploadPreview"></div>
     </div>
 
     <button class="btn-submit" id="submitBtn" onclick="payAndAsk()">Pay & Ask</button>
@@ -255,47 +292,64 @@
     <div class="result" id="result"></div>
   </div>
 
-  <script src="/freighter-api.js"></script>
+  <script src="/stellar-wallets-kit.js"></script>
   <script>
-    const { isConnected, getAddress, signTransaction } = FreighterApi;
+    const { StellarWalletsKit, defaultModules, Networks } = SWK;
+
+    StellarWalletsKit.init({
+      modules: defaultModules(),
+      network: Networks.TESTNET,
+    });
 
     let walletAddress = null;
     let selectedAmount = '0.3';
+    let selectedType = 'research';
+    let selectedFile = null;
 
     window.selectTier = (el) => {
       document.querySelectorAll('.tier').forEach(t => t.classList.remove('selected'));
       el.classList.add('selected');
       selectedAmount = el.dataset.amount;
+      selectedType = el.dataset.type;
+      const uploadField = document.getElementById('uploadField');
+      uploadField.className = selectedType === 'image_ocr' ? 'upload-field visible' : 'upload-field';
+      if (selectedType !== 'image_ocr') { selectedFile = null; document.getElementById('uploadPreview').textContent = ''; }
+    };
+
+    window.onFileSelected = (file) => {
+      selectedFile = file;
+      document.getElementById('uploadPreview').textContent = file ? `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)` : '';
+    };
+
+    window.onDragOver = (e) => { e.preventDefault(); document.getElementById('uploadDrop').classList.add('dragover'); };
+    window.onDragLeave = () => { document.getElementById('uploadDrop').classList.remove('dragover'); };
+    window.onDrop = (e) => {
+      e.preventDefault();
+      document.getElementById('uploadDrop').classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) onFileSelected(file);
     };
 
     window.connectWallet = async () => {
       try {
-        const { isConnected: connected } = await isConnected();
-        if (!connected) {
-          showError('Freighter not found — install it from freighter.app and refresh.');
-          return;
-        }
-        const { address: accessAddr, error: accessErr } = await FreighterApi.requestAccess();
-        if (accessErr) { showError('Freighter access denied: ' + accessErr); return; }
-        const { address, error: addrErr } = await getAddress();
-        const resolvedAddress = address || accessAddr;
-        if (!resolvedAddress) { showError('Could not get address from Freighter.'); return; }
-
-        walletAddress = resolvedAddress;
+        const { address } = await StellarWalletsKit.authModal();
+        walletAddress = address;
         document.getElementById('walletInfo').textContent = 'Connected';
-        document.getElementById('walletAddress').textContent = resolvedAddress.slice(0, 6) + '...' + resolvedAddress.slice(-4);
+        document.getElementById('walletAddress').textContent = address.slice(0, 6) + '...' + address.slice(-4);
         const btn = document.getElementById('connectBtn');
         btn.textContent = 'Connected';
         btn.classList.add('connected');
       } catch (e) {
-        showError('Could not connect: ' + e.message);
+        // user closed the modal — not an error worth showing
+        if (e?.code !== -1) showError('Could not connect: ' + (e?.message || e));
       }
     };
 
     window.payAndAsk = async () => {
       const query = document.getElementById('query').value.trim();
-      if (!query) { showError('Please enter a query.'); return; }
-      if (!walletAddress) { showError('Connect your Freighter wallet first.'); return; }
+      if (selectedType === 'image_ocr' && !selectedFile) { showError('Please select an image to upload.'); return; }
+      if (selectedType !== 'image_ocr' && !query) { showError('Please enter a query.'); return; }
+      if (!walletAddress) { showError('Connect your wallet first.'); return; }
 
       const btn = document.getElementById('submitBtn');
       btn.disabled = true;
@@ -312,10 +366,13 @@
         const { xdr, memo, error: payErr } = await payRes.json();
         if (payErr) throw new Error(payErr);
 
-        // Step 2: Sign with Freighter
-        setStatus('Waiting for Freighter signature...');
-        const { signedTxXdr, error: signErr } = await signTransaction(xdr, { networkPassphrase: 'Test SDF Network ; September 2015' });
-        if (signErr || !signedTxXdr) throw new Error('Signing cancelled or failed: ' + (signErr || ''));
+        // Step 2: Sign with chosen wallet
+        setStatus('Waiting for wallet signature...');
+        const { signedTxXdr } = await StellarWalletsKit.signTransaction(xdr, {
+          networkPassphrase: Networks.TESTNET,
+          address: walletAddress,
+        });
+        if (!signedTxXdr) throw new Error('Signing cancelled or failed.');
 
         // Step 3: Submit to Horizon
         setStatus('Submitting payment to Stellar...');
@@ -328,16 +385,28 @@
         if (submitErr) throw new Error('Submission failed: ' + JSON.stringify(submitErr));
 
         // Step 4: Wait for Horizon to index, then query
-        setStatus('Payment confirmed. Querying agent...');
+        setStatus('Payment confirmed. Processing...');
         await delay(4000);
 
-        const queryRes = await fetch('/query', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, pubkey: walletAddress, memoId: memo }),
-        });
-        const data = await queryRes.json();
-        if (!queryRes.ok) throw new Error(data.error || 'Query failed');
+        let data;
+        if (selectedType === 'image_ocr') {
+          const form = new FormData();
+          form.append('image', selectedFile);
+          form.append('pubkey', walletAddress);
+          form.append('memoId', memo);
+          if (query) form.append('query', query);
+          const queryRes = await fetch('/image-query', { method: 'POST', body: form });
+          data = await queryRes.json();
+          if (!queryRes.ok) throw new Error(data.error || 'Image OCR failed');
+        } else {
+          const queryRes = await fetch('/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, pubkey: walletAddress, memoId: memo }),
+          });
+          data = await queryRes.json();
+          if (!queryRes.ok) throw new Error(data.error || 'Query failed');
+        }
 
         showResult(data);
       } catch (err) {
@@ -384,9 +453,7 @@
 
     function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-    // Pre-select the 0.3 XLM tier by default
-    document.querySelector('[data-amount="0.3"]').classList.add('selected');
-    document.querySelectorAll('[data-amount="0.1"], [data-amount="0.2"]').forEach(t => t.classList.remove('selected'));
+    // Pre-select the 0.3 XLM Research tier by default (already set in HTML)
   </script>
 </body>
 </html>

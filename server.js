@@ -3,11 +3,17 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createRequire } from 'module';
+import multer from 'multer';
+import fs from 'fs/promises';
+import path from 'path';
 import { verifyPayment } from './middleware/verifyPayment.js';
 import { routeQuery } from './middleware/routeQuery.js';
+import { getTierPrices, pricingResponse } from './contracts/pricing.js';
 import { searchAgent } from './agents/search.js';
 import { financialAgent } from './agents/financial.js';
 import { newsAgent } from './agents/news.js';
+import { extractAgent } from './agents/extract.js';
+import { imageOcrAgent } from './agents/image_ocr.js';
 import { synthesize } from './agents/synthesize.js';
 
 dotenv.config();
@@ -20,6 +26,21 @@ const app = express();
 app.use(express.json());
 app.use(express.static(join(__dirname, 'public')));
 
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: join(__dirname, 'temp_uploads'),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname) || '.png';
+      cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+    },
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are allowed'));
+  },
+});
+
 const TIER_AGENTS = {
   search:    [{ agent: 'search',    fn: searchAgent }],
   news:      [{ agent: 'search',    fn: searchAgent },
@@ -27,6 +48,7 @@ const TIER_AGENTS = {
   financial: [{ agent: 'search',    fn: searchAgent },
               { agent: 'news',      fn: newsAgent },
               { agent: 'financial', fn: financialAgent }],
+  extract:   [{ agent: 'extract',   fn: extractAgent }],
 };
 
 // Returns gateway address so the frontend can display it
@@ -34,15 +56,12 @@ app.get('/config', (_req, res) => {
   res.json({ gatewayAddress: process.env.GATEWAY_ADDRESS });
 });
 
-app.get('/pricing', (_req, res) => {
-  res.json({
-    search:    { cost: '0.1 XLM', sources: 1, description: 'Web search' },
-    news:      { cost: '0.2 XLM', sources: 2, description: 'Web search + news' },
-    financial: { cost: '0.3 XLM', sources: 3, description: 'Web + news + financial data' },
-  });
+app.get('/pricing', async (_req, res) => {
+  const prices = await getTierPrices();
+  res.json(pricingResponse(prices));
 });
 
-// Builds an unsigned payment transaction and returns the XDR for Freighter to sign
+// Builds an unsigned payment transaction and returns the XDR for the wallet to sign
 app.post('/create-payment', async (req, res) => {
   const { pubkey, amount } = req.body;
   if (!pubkey || !amount) return res.status(400).json({ error: 'pubkey and amount required' });
@@ -72,7 +91,7 @@ app.post('/create-payment', async (req, res) => {
   }
 });
 
-// Submits a Freighter-signed transaction to Horizon
+// Submits a signed transaction to Horizon
 app.post('/submit-payment', async (req, res) => {
   const { xdr } = req.body;
   if (!xdr) return res.status(400).json({ error: 'xdr required' });
@@ -104,7 +123,8 @@ app.post('/query', async (req, res) => {
     });
   }
 
-  const { type, refinedQuery } = await routeQuery(query, payment.amount);
+  const tierPrices = await getTierPrices();
+  const { type, refinedQuery } = await routeQuery(query, payment.amount, tierPrices);
 
   const agentList = TIER_AGENTS[type];
   const results = await Promise.all(
@@ -124,5 +144,47 @@ app.post('/query', async (req, res) => {
   });
 });
 
+app.post('/image-query', upload.single('image'), async (req, res) => {
+  const { pubkey, memoId, query } = req.body;
+  const file = req.file;
+
+  if (!pubkey || !memoId || !file) {
+    if (file) await fs.unlink(file.path).catch(() => {});
+    return res.status(400).json({ error: 'pubkey, memoId, and image are required' });
+  }
+
+  const payment = await verifyPayment(pubkey, memoId);
+  if (!payment.valid) {
+    await fs.unlink(file.path).catch(() => {});
+    return res.status(402).json({
+      error: payment.reason,
+      gatewayAddress: process.env.GATEWAY_ADDRESS,
+      pricing: { image_ocr: '0.2 XLM' },
+    });
+  }
+
+  const tierPrices = await getTierPrices();
+  if (payment.amount < tierPrices.image_ocr) {
+    await fs.unlink(file.path).catch(() => {});
+    return res.status(402).json({ error: `Image OCR requires at least ${tierPrices.image_ocr} XLM` });
+  }
+
+  try {
+    const ocrResult = await imageOcrAgent(file.path);
+    const synthesized = await synthesize(query || 'Extract and describe all text found in this image.', [{ agent: 'image_ocr', ...ocrResult }]);
+    res.json({
+      answer: synthesized,
+      sources: [],
+      agentsUsed: ['image_ocr'],
+      xlmCharged: payment.amount,
+    });
+  } finally {
+    await fs.unlink(file.path).catch(() => {});
+  }
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Paygent running on port ${PORT}`));
+app.listen(PORT, async () => {
+  console.log(`Paygent running on port ${PORT}`);
+  await getTierPrices();
+});
