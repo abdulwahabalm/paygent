@@ -10,6 +10,10 @@ import { fileURLToPath } from 'url';
 const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const PYTHON = '/Users/aw/anaconda3/envs/paygent-ocr/bin/python';
+const OCR_SCRIPT = path.join(__dirname, 'ocr.py');
+
+
 export async function extractAndOcr(url, options = {}) {
     const {
         waitForNetworkIdle = true,
@@ -82,24 +86,14 @@ export async function extractAndOcr(url, options = {}) {
                     const imgPath = path.join(tempDir, `ocr_target_${i}.png`);
                     await elementHandle.screenshot({ path: imgPath });
                     
-                    // Call Python OCR script
                     try {
-                        const ocrScript = path.join(__dirname, 'ocr.py');
-                        // Use the venv python
-                        const pythonPath = path.join(__dirname, '..', 'venv', 'Scripts', 'python.exe');
-                        
-                        const { stdout, stderr } = await execAsync(`${pythonPath} "${ocrScript}" "${imgPath}"`);
+                        const { stdout } = await execAsync(`"${PYTHON}" "${OCR_SCRIPT}" "${imgPath}"`);
                         const jsonStr = stdout.substring(stdout.indexOf('{')).trim();
                         const parsed = JSON.parse(jsonStr);
-                        
                         if (parsed.success) {
                             const combinedText = parsed.data.map(d => d.text).join(' ');
                             if (combinedText.trim()) {
-                                ocrResults.push({
-                                    type: elInfo.type,
-                                    text: combinedText,
-                                    raw: parsed.data
-                                });
+                                ocrResults.push({ type: elInfo.type, text: combinedText, raw: parsed.data });
                             }
                         }
                     } catch (e) {
