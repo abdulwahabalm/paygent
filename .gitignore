@@ -144,3 +144,11 @@ contracts/paywall/Cargo.lock
 
 # Environment
 .env
+
+# Python venv
+venv/
+
+# Extractor temp files
+extractor/temp_images/
+extraction_result.json
+log.txt
